@@ -10,6 +10,7 @@ https://arxiv.org/abs/1809.01330
 
 import torch
 from torch import nn
+from utils import ConvBNReLU
 
 class GCWConv(nn.Module):
     def __init__(self, groups, kernel_size, padding):
@@ -79,11 +80,11 @@ if __name__ == "__main__":
     torch.manual_seed(226)
     t = torch.rand((32, 64, 21, 21))
     gcw = GCWConv(2, 3, 1)
-    print("GCWConv : ", gcw.forward(t).size())
+    print("GCWConv : ", gcw(t).size())
     dwcw = DWCWConv(64, 3, 1)
-    print("DWCWConv : ", dwcw.forward(t).size())
+    print("DWCWConv : ", dwcw(t).size())
     gm = ChannelBlock(64, 512, 4, 3, 1, False)
-    print("GM : ", gm.forward(t).size())
+    print("GM : ", gm(t).size())
     gcwm = ChannelBlock(64, 512, 8, 3, 1, False)
-    print("GCWM : ", gcwm.forward(t).size())
+    print("GCWM : ", gcwm(t).size())
 
