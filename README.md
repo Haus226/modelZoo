@@ -1,2 +1,8 @@
-# paper-w-wo-code
-A repository that stores my notes on the papers I've read, with some including code and others not.
+# modelZoo
+A repository that implement:
+- ariants of Convolution
+- CNN Attention
+- Backbone Block (CNN and ViT)
+- Normalization
+- Activation
+- Sampling
