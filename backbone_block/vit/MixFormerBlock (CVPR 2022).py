@@ -11,10 +11,11 @@ https://github.com/PaddlePaddle/PaddleClas/blob/7b6c148065ba602dccf3e75a484f83e0
 
 import torch
 from torch import nn
-from utils import rel_pos_idx, WP, RWP, Mlp, PatchEmbeddingV2
+from utils import rel_pos_idx, WP, RWP, Mlp, PatchEmbeddingV1
 from timm.layers import DropPath
 import torch.nn.functional as F
 import math
+from einops import rearrange
 
 class MixingAttention(nn.Module):
     def __init__(self, channels, window_size, kernel_size, num_heads,
@@ -134,14 +135,14 @@ class MixingAttention(nn.Module):
 
 class MixFormerBlock(nn.Module):
     def __init__(self, channels, num_heads, window_size, kernel_size, mlp_ratio, qkv_bias=True, 
-                proj_drop=0, attn_drop=0, drop_path=0, act_layer=nn.GELU, norm_layer=nn.LayerNorm,
+                proj_drop=0, attn_drop=0, drop_path=0, act_layer=nn.GELU, norm_layer=nn.LayerNorm
                 ):
         super(MixFormerBlock, self).__init__()
         self.window_size = window_size
         self.norm1 = norm_layer(channels)
         self.token_mixer = MixingAttention(channels, window_size, kernel_size, num_heads, qkv_bias, attn_drop, proj_drop)
         self.norm2 = norm_layer(channels)
-        self.mlp = Mlp(channels, int(mlp_ratio * channels), act_layer=act_layer, drop=proj_drop, use_conv=False)
+        self.mlp = Mlp(channels, int(mlp_ratio * channels), act_layer=act_layer,norm_layer=norm_layer, drop=proj_drop, use_conv=False)
         self.drop_path = DropPath(drop_path) if drop_path > 0 else nn.Identity()
 
     def forward(self, x, H, W):
@@ -172,29 +173,37 @@ class MixFormerBlock(nn.Module):
     
 class MixFormerStage(nn.Module):
     def __init__(self, channels, embed_channels, patch_size, stride, padding=0, norm_pe=None,
-                num_heads=4, window_size=[7, 7], kernel_size=3, mlp_ratio=4.0, qkv_bias=True, 
+                num_blocks=2, num_heads=4, window_size=[7, 7], kernel_size=3, mlp_ratio=4.0, qkv_bias=True, 
                 proj_drop=0, attn_drop=0, drop_path=0, act_layer=nn.GELU, norm_layer=nn.LayerNorm):
         super(MixFormerStage, self).__init__()
         self.patch_size = patch_size
         self.padding = padding
         self.stride = stride
-        self.pe = PatchEmbeddingV2(channels, embed_channels, patch_size, stride, padding, norm_pe)
-        self.block = MixFormerBlock(embed_channels, num_heads, window_size, kernel_size, mlp_ratio,
-                                    qkv_bias, proj_drop, attn_drop, drop_path, act_layer, norm_layer)
+        self.pe = PatchEmbeddingV1(channels, embed_channels, patch_size, stride, padding, norm_pe)
+        self.blocks = nn.ModuleList([
+            MixFormerBlock(embed_channels, num_heads, window_size, kernel_size, mlp_ratio,
+            qkv_bias, proj_drop, attn_drop, drop_path, act_layer, norm_layer) for _ in range(num_blocks)
+        ])
 
-    def forward(self, x, H, W):
+    def forward(self, x):
         # For even patch_size and stride == patch_size, then, H' = H // stride and W' = W //stride
-        return self.block(self.pe(x, H, W), 
-                          math.floor((H - self.patch_size + 2 * self.padding) // self.stride + 1), 
-                          math.floor((W - self.patch_size + 2 * self.padding) // self.stride + 1), 
-                )
+        B, C, H, W = x.size()
+        H_ = math.floor((H - self.patch_size + 2 * self.padding) // self.stride + 1)
+        W_ = math.floor((W - self.patch_size + 2 * self.padding) // self.stride + 1)
+        x = self.pe(x)
+        x = self.blocks[0](rearrange(x, "b c h w -> b (h w) c"), H_, W_)
+        for block in self.blocks[1:]:
+            x = block(x, H_, W_)
+        return x
 
 if __name__ == "__main__":
     torch.manual_seed(226)
     t = torch.rand((32, 32 * 32, 64))
     block = MixFormerBlock(64, 4, [3, 3], 3, 4)
     print(block(t, 32, 32).size())
+
+    t = torch.rand((32, 64, 32, 32))
     stage = MixFormerStage(64, 128, 4, 4, 0)
-    print(stage(t, 32, 32).size())
+    print(stage(t).size())
     stage = MixFormerStage(64, 128, 5, 2, 2)
-    print(stage(t, 32, 32).size())
+    print(stage(t).size())
