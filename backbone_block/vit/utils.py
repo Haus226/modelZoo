@@ -32,7 +32,6 @@ class SEBlock(nn.Module):
         excitation = F.sigmoid(self.fc2(F.relu(self.fc1(squeeze)))).view(b, c, 1, 1)
         return x * excitation.expand_as(x)
 
-
 class Mlp(nn.Module):
     def __init__(self, in_channels, mid_channels=None, out_channels=None, 
                 act_layer=nn.GELU, norm_layer=None, 
@@ -55,6 +54,14 @@ class Mlp(nn.Module):
         x = self.fc2(x)
         x = self.drop2(x)
         return x
+
+class GroupNorm(nn.GroupNorm):
+    '''
+    GroupNorm is equivalent to LayerNorm when num_groups = 1
+    '''
+    def __init__(self, num_channels, **kwargs):
+        super(GroupNorm, self).__init__(1, num_channels, **kwargs)
+
 
 class PatchEmbeddingV1(nn.Module):
     '''
@@ -95,7 +102,7 @@ class PatchEmbeddingV2(nn.Module):
     If norm will be LayerNorm, use nn.GroupNorm where num_groups == 1
     '''
 
-    def __init__(self, in_channels, embed_channels, patch_size, stride, padding=0, norm=None):
+    def __init__(self, in_channels, embed_channels, patch_size, stride, padding=0, norm=GroupNorm):
         super(PatchEmbeddingV2, self).__init__()
         self.embed = nn.Conv2d(in_channels, embed_channels, patch_size, stride, padding)
         self.norm = norm(embed_channels) if norm is not None else nn.Identity()
@@ -105,12 +112,22 @@ class PatchEmbeddingV2(nn.Module):
         assert N == H * W
         return rearrange(self.norm(self.embed(x.reshape(B, H, W, C).permute(0, 3, 1, 2))), "b c h w -> b (h w) c")
 
-class GroupNorm(nn.GroupNorm):
-    '''
-    GroupNorm is equivalent to LayerNorm when num_groups = 1
-    '''
-    def __init__(self, num_channels, **kwargs):
-        super(GroupNorm, self).__init__(1, num_channels, **kwargs)
+'''
+Title: CONDITIONAL POSITIONAL ENCODINGS FOR VISION TRANSFORMERS
+References: https://arxiv.org/abs/2102.10882
+'''
+class CPE(nn.Module):
+    def __init__(self, in_channels, embed_channels, kernel_size=3, stride=1, padding=1, groups=1):
+        super(CPE, self).__init__()
+        self.conv = nn.Conv2d(in_channels, embed_channels, kernel_size, stride, padding, groups=groups)
+        self.stride = stride
+
+    def forward(self, x, H, W):
+        assert x.size(1) == H * W
+        x = rearrange(x, "b (h w) c -> b c h w", h=H, w=W)
+        x = self.conv(x) + x if self.stride == 1 else self.conv(x)
+        x = rearrange(x, "b c h w -> b (h w) c")
+        return x
 
 def rel_pos_idx(height, width):
     coords = torch.meshgrid((torch.arange(height), torch.arange(width)), indexing="ij")
@@ -167,6 +184,7 @@ def RGP(x, h, w, grid_height, grid_width):
     (B * H // GRID_H * W // GRID_W, GRID_H * GRID_W, C) ---> (B, C, H, W)
     '''
     return rearrange(x, "(b h w) (gh gw) c -> b c (gh h) (gw w)", h=h // grid_height, w=w // grid_width, gh=grid_height, gw=grid_width)
+
 
 
 if __name__ == "__main__":

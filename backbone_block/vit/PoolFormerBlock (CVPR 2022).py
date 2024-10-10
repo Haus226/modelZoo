@@ -24,7 +24,7 @@ class Pooling(nn.Module):
 
 class PoolFormerBlock(nn.Module):
     def __init__(self, channels, pool_size=3, mlp_ratio=4,
-                act_layer=nn.GELU, norm_layer=GroupNorm, 
+                act_layer=nn.GELU, norm_layer=GroupNorm,
                 drop=0, drop_path=0, layer_scale=1e-5):
         super(PoolFormerBlock, self).__init__()
 
@@ -44,19 +44,24 @@ class PoolFormerBlock(nn.Module):
 
 class PoolFormerStage(nn.Module):
     def __init__(self, in_channels, patch_size, embed_channels, stride, padding=0, norm_pe=None, 
-                pool_size=3, mlp_ratio=4,
-                act_layer=nn.GELU, norm_layer=GroupNorm, 
+                num_blocks=2, pool_size=3, mlp_ratio=4,
+                act_layer=nn.GELU, norm_layer=GroupNorm,
                 drop=0, drop_path=0, layer_scale=1e-5):
         super(PoolFormerStage, self).__init__()
         self.pe = PatchEmbeddingV1(in_channels, embed_channels, patch_size, stride, padding, norm_pe)
-        self.block = PoolFormerBlock(embed_channels, pool_size, mlp_ratio, act_layer, norm_layer, drop, drop_path, layer_scale)
+        self.blocks = nn.ModuleList([
+            PoolFormerBlock(embed_channels, pool_size, mlp_ratio, act_layer, norm_layer, drop, drop_path, layer_scale)
+            for _ in range(num_blocks)
+        ])
+        
 
     def forward(self, x):
         '''
         Should be more blocks, this code is just for testing
         '''
         x = self.pe(x)
-        x = self.block(x)
+        for block in self.blocks:
+            x = block(x)
         return x
     
 if __name__ == "__main__":

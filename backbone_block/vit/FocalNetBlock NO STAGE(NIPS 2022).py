@@ -77,7 +77,7 @@ class FocalNetBlock(nn.Module):
 
     def forward(self, x):
         x = x + self.drop_path(self.gamma_1.view(x.size(1), 1, 1) * self.modulation(self.pre_norm(x).permute(0, 2, 3, 1)).permute(0, 3, 1, 2))
-        x = x + self.drop_path(self.gamma_2.view(x.size(1), 1, 1) * self.mlp(x))
+        x = x + self.drop_path(self.gamma_2.view(x.size(1), 1, 1) * self.mlp(self.post_norm(x)))
         return x
 
 if __name__ == "__main__":

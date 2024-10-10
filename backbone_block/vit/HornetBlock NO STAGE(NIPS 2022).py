@@ -83,10 +83,8 @@ class HorNetBlock(nn.Module):
         self.mlp = mlp
 
         # Layer scaling proposed in "Going deeper with Image Transformers" (CaiT)
-        self.gamma_1 = nn.Parameter(layer_scale * torch.ones(channels), 
-                                    requires_grad=True) if layer_scale > 0 else 1
-        self.gamma_2 = nn.Parameter(layer_scale * torch.ones(channels), 
-                                    requires_grad=True) if layer_scale > 0 else 1
+        self.gamma_1 = nn.Parameter(layer_scale * torch.ones(channels)) if layer_scale > 0 else 1
+        self.gamma_2 = nn.Parameter(layer_scale * torch.ones(channels)) if layer_scale > 0 else 1
         self.drop_path = DropPath(p) if p > 0 else nn.Identity()
 
     def forward(self, x):
