@@ -1,3 +1,13 @@
+'''
+Title
+Dynamic Convolution: Attention over Convolution Kernels
+
+References
+http://arxiv.org/abs/1912.03458
+'''
+
+
+
 import torch
 from torch import nn
 from torch.nn import functional as F

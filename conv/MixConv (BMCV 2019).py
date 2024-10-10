@@ -1,3 +1,13 @@
+'''
+Title
+MixConv: Mixed Depthwise Convolutional Kernels
+
+References
+http://arxiv.org/abs/1907.09595
+'''
+
+
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F

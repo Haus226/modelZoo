@@ -1,6 +1,6 @@
 # modelZoo
 A repository that implement:
-- ariants of Convolution
+- [Variants of Convolution](/conv/README.md)
 - CNN Attention
 - Backbone Block (CNN and ViT)
 - Normalization

@@ -1,10 +1,22 @@
+'''
+Title
+Omni-Dimensional Dynamic Convolution
+
+References
+http://arxiv.org/abs/2209.07947
+'''
+
+
+
 import torch
 from torch import nn
 import torch.nn.functional as F
 
-class ODConv:
+class ODConv(nn.Module):
     def __init__(self, input_channels, output_channels, kernel_size, kernel_num=4, r=16, groups=1, 
                 stride=1, padding=0, dilation=1):
+        super(ODConv, self).__init__()
+        
         inter_channels = input_channels // r
 
         self.stride = stride
@@ -62,4 +74,4 @@ class ODConv:
 if __name__ == "__main__":
     t = torch.rand(32, 64, 21, 21)
     odconv = ODConv(64, 16, 3, padding=1)
-    print(odconv.forward(t).size())
+    print(odconv(t).size())

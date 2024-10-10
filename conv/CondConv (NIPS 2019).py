@@ -1,5 +1,15 @@
+'''
+Title
+CondConv: Conditionally Parameterized Convolutions for Efficient Inference
+
+References
+http://arxiv.org/abs/1904.04971
+'''
+
+
+
 import torch
-from torch import mean, nn
+from torch import nn
 from torch.nn import functional as F
 from torch.nn.modules.conv import _ConvNd
 from torch.nn.modules.utils import _pair
@@ -69,4 +79,4 @@ class CondConv(_ConvNd):
 if __name__ == "__main__":
     t = torch.rand(5, 64, 21, 21)
     s = CondConv(64, 128, 3)
-    print(s.forward(t).size())
+    print(s(t).size())

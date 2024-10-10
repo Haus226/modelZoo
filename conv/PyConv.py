@@ -1,3 +1,13 @@
+'''
+Title
+Pyramidal Convolution: Rethinking Convolutional Neural Networks for Visual Recognition
+
+References
+http://arxiv.org/abs/2006.11538
+'''
+
+
+
 import torch
 from torch import nn
 
@@ -24,5 +34,5 @@ if __name__ == "__main__":
     torch.manual_seed(42)
     t = torch.rand(5, 12, 64, 64).float()
     s = PyConv(12, [4, 5, 3], [3, 5, 7], [2, 1, 4])
-    print(s.forward(t).size())
+    print(s(t).size())
                 

@@ -1,8 +1,19 @@
+'''
+Title
+Involution: Inverting the Inherence of Convolution for Visual Recognition
+
+References
+http://arxiv.org/abs/2103.06255
+'''
+
+
+
 import torch
 from torch import nn
 
-class Involution:
+class Involution(nn.Module):
     def __init__(self, input_channels, kernel_size, r, stride, groups):
+        super(Involution, self).__init__()
         self.gap = None
         if stride > 1:
             self.gap = nn.AvgPool2d((stride, stride))
@@ -33,5 +44,5 @@ class Involution:
 if __name__ == "__main__":
     t = torch.rand((36, 128, 21, 21))
     i = Involution(128, 3, 16, 2, 1)
-    print(i.forward(t).size())
+    print(i(t).size())
         

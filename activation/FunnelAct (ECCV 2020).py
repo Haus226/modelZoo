@@ -1,6 +1,7 @@
 '''
 Title
 Funnel Activation for Visual Recognition
+ECCV 2020
 
 References
 http://arxiv.org/abs/2007.11824

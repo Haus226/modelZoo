@@ -1,9 +1,20 @@
+'''
+Title
+SCConv: Spatial and Channel Reconstruction Convolution for Feature Redundancy
+
+References
+https://ieeexplore.ieee.org/document/10204928/
+'''
+
+
+
 import torch
 from torch import nn
 
-class SRU:
-    def __init__(self, input_channels, groups=16, threshold=0.5) -> None:
-        self.gn = nn.GroupNorm(groups, input_channels)
+class SRU(nn.Module):
+    def __init__(self, in_channels, groups=16, threshold=0.5) -> None:
+        super(SRU, self).__init__()
+        self.gn = nn.GroupNorm(groups, in_channels)
         self.threshold = threshold
 
     def forward(self, x):
@@ -20,18 +31,19 @@ class SRU:
         x_w21, x_w22 = torch.chunk(x_w2, 2, dim=1)
         return torch.cat([x_w11 + x_w22, x_w21 + x_w12], dim=1)
 
-class CRU:
-    def __init__(self, input_channels, kernel_size=3, alpha=0.5, r=2, groups=2) -> None:
-        self.up_channel = int(alpha * input_channels)
-        self.low_channel = input_channels - self.up_channel
+class CRU(nn.Module):
+    def __init__(self, in_channels, kernel_size=3, alpha=0.5, r=2, groups=2) -> None:
+        super(CRU, self).__init__()
+        self.up_channel = int(alpha * in_channels)
+        self.low_channel = in_channels - self.up_channel
 
         self.squeeze1 = nn.Conv2d(self.up_channel, self.up_channel // r, 1, bias=False)
         self.squeeze2 = nn.Conv2d(self.low_channel, self.low_channel // r, 1, bias=False)
 
-        self.GWC = nn.Conv2d(self.up_channel // r, input_channels, kernel_size, 
+        self.GWC = nn.Conv2d(self.up_channel // r, in_channels, kernel_size, 
                              padding=kernel_size // 2, groups=groups)
-        self.PWC1 = nn.Conv2d(self.up_channel // r, input_channels, 1, bias=False)
-        self.PWC2 = nn.Conv2d(self.low_channel // r, input_channels - self.low_channel // r, 1, bias=False)
+        self.PWC1 = nn.Conv2d(self.up_channel // r, in_channels, 1, bias=False)
+        self.PWC2 = nn.Conv2d(self.low_channel // r, in_channels - self.low_channel // r, 1, bias=False)
         self.gap = nn.AdaptiveAvgPool2d(1)
 
     def forward(self, x):
@@ -44,11 +56,12 @@ class CRU:
         y1, y2 = torch.chunk(y, 2, dim=1)
         return y1 + y2
         
-class SCConv:
-    def __init__(self, input_channels, threshold=0.5, alpha=0.5, r=2, gn_groups=16, gwc_groups=2,
+class SCConv(nn.Module):
+    def __init__(self, in_channels, threshold=0.5, alpha=0.5, r=2, gn_groups=16, gwc_groups=2,
                 gwc_kernel=3):
-        self.sru = SRU(input_channels, gn_groups, threshold)
-        self.cru = CRU(input_channels, gwc_kernel, alpha, r, gwc_groups)
+        super(SCConv, self).__init__()
+        self.sru = SRU(in_channels, gn_groups, threshold)
+        self.cru = CRU(in_channels, gwc_kernel, alpha, r, gwc_groups)
 
     def forward(self, x):
         x = self.sru.forward(x)
@@ -58,4 +71,4 @@ class SCConv:
 if __name__ == "__main__":
     t = torch.rand(32, 64, 21, 21)
     sc = SCConv(64)
-    sc.forward(t).size()
+    print(sc(t).size())
