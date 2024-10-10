@@ -1,7 +1,8 @@
 # modelZoo
 A repository that implement:
 ## [Variants of Convolution](/conv/README.md)
-
+<details>
+  <summary>Details</summary>
 |Title|Conference/Publication|Official Repo|My Implementation|
 |-----|----------------------|-------------|-----------------|
 |[CondConv: Conditionally Parameterized Convolutions for Efficient Inference](http://arxiv.org/abs/1904.04971)|NIPS 2019|[Repo](https://github.com/tensorflow/tpu/tree/master/models/official/efficientnet/condconv)|[CondConv.py](/conv/CondConv%20(NIPS%202019).py)
@@ -14,15 +15,26 @@ A repository that implement:
 |[Improving Convolutional Networks With Self-Calibrated Convolutions](https://ieeexplore.ieee.org/document/9156634/)|CVPR 2020|[Repo](https://github.com/MCG-NKU/SCNet)|[SelfCalibratedConv.py](/conv/SelfCalibratedConv%20(CVPR%202020).py)|
 |[SlimConv: Reducing Channel Redundancy in Convolutional Neural Networks by Weights Flipping](http://arxiv.org/abs/2003.07469)|TIP 2021|[Repo](https://github.com/JiaxiongQ/SlimConv)|[SlimConv.py](https://github.com/JiaxiongQ/SlimConv)|
 |[WeightNet: Revisiting the Design Space of Weight Networks](https://arxiv.org/abs/2007.11823)|ECCV 2020|[Repo](https://github.com/megvii-model/WeightNet)|[WeightConv.py](/conv/WeightConv%20(ECCV%202020).py)|
+</details>
 
 
 
 
 
+## CNN Attention
+## Backbone Block (CNN and ViT)
+## Normalization
+## Activation
+## [Sampling](/sampling/README.md)
+<details>
+  <summary>Details</summary>
+|Title|Conference/Publication|Official Repo|My Implementation|
+|-----|----------------------|-------------|-----------------|
+|[Making Convolutional Networks Shift-Invariant Again](http://arxiv.org/abs/1904.11486)|ICML 2019|[Repo](https://github.com/adobe/antialiased-cnns/blob/master/antialiased_cnns/blurpool.py)|[BlurPool.py](/sampling/BlurPool%20(ICML%202019).py)|
+|[CARAFE: Content-Aware ReAssembly of FEatures](http://arxiv.org/abs/1905.02188)|ICCV 2019|[Unofficial Repo](https://github.com/XiaLiPKU/CARAFE/blob/master/carafe.py)|[CARAFE.py](/sampling/CARAFE%20(ICCV%202019).py)(Pasted from Repo)|
+|[LIP: Local Importance-based Pooling](http://arxiv.org/abs/1908.04156)|ICCV 2019|[Repo](https://github.com/sebgao/LIP)|[LIP.py](/sampling/LIP%20(ICCV%202019).py)|
+|[Refining activation downsampling with SoftPool](http://arxiv.org/abs/2101.00440)|ICCV 2021|[Repo](https://github.com/alexandrosstergiou/SoftPool)|[SoftPool.py](/sampling/SoftPool%20(ICCV%202021).py)
+</details>
 
 
-- CNN Attention
-- Backbone Block (CNN and ViT)
-- Normalization
-- Activation
-- Sampling
+
