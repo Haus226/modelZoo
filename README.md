@@ -3,6 +3,7 @@ A repository that implement:
 ## [Variants of Convolution](/conv/README.md)
 <details>
   <summary>Details</summary>
+
 |Title|Conference/Publication|Official Repo|My Implementation|
 |-----|----------------------|-------------|-----------------|
 |[CondConv: Conditionally Parameterized Convolutions for Efficient Inference](http://arxiv.org/abs/1904.04971)|NIPS 2019|[Repo](https://github.com/tensorflow/tpu/tree/master/models/official/efficientnet/condconv)|[CondConv.py](/conv/CondConv%20(NIPS%202019).py)
@@ -23,11 +24,20 @@ A repository that implement:
 
 ## CNN Attention
 ## Backbone Block (CNN and ViT)
-## Normalization
+## [Normalization](/normalization/README.md)
+<details>
+  <summary>Details</summary>
+
+|Title|Conference/Publication|Official Repo|My Implementation|
+|-----|----------------------|-------------|-----------------|
+|[Bnet: Batch normalization with enhanced linear transformation](http://arxiv.org/abs/2011.14150)|TPAMI 2023|[Repo](https://github.com/yuhuixu1993/BNET)|[BNet.py](/normalization/BNet%20(TPAMI%202023).py)|
+</details>
+
 ## Activation
 ## [Sampling](/sampling/README.md)
 <details>
   <summary>Details</summary>
+
 |Title|Conference/Publication|Official Repo|My Implementation|
 |-----|----------------------|-------------|-----------------|
 |[Making Convolutional Networks Shift-Invariant Again](http://arxiv.org/abs/1904.11486)|ICML 2019|[Repo](https://github.com/adobe/antialiased-cnns/blob/master/antialiased_cnns/blurpool.py)|[BlurPool.py](/sampling/BlurPool%20(ICML%202019).py)|
