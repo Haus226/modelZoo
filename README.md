@@ -1,5 +1,16 @@
 # modelZoo
-A repository that implement:
+A repository that implements proposed idea from popular conference such as ECCV, CVPR, NIPS and etc from scratch.
+
+|Category|Number of Implementation|
+|--------|------------------------|
+|Activation|3|
+|CNN Attention|21|
+|CNN Backbone|9|
+|ViT Backbone|8|
+|Convolution|10|
+|Normalization|1|
+|Sampling/Pooling|4|
+
 ## [Variants of Convolution](/conv/README.md)
 <details>
   <summary>Details</summary>
