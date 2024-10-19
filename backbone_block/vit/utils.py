@@ -3,19 +3,6 @@ import torch
 from einops import rearrange
 import torch.nn.functional as F
 
-class ConvBNReLU(nn.Module):
-    def __init__(self, in_channels, out_channels, 
-                kernel_size, stride=1, padding=0, dilation=1, groups=1, bias=True,
-                eps=1e-05, momentum=0.1, affine=True, norm=True,
-                act=nn.ReLU):
-        super(ConvBNReLU, self).__init__()
-        self.conv = nn.Conv2d(in_channels, out_channels, kernel_size, stride, padding, dilation, groups, bias)
-        self.bn = nn.BatchNorm2d(out_channels, eps, momentum, affine) if norm else nn.Identity()
-        self.act = act() if act else nn.Identity()
-    
-    def forward(self, x):
-        return self.act(self.bn(self.conv(x)))
-
 class SEBlock(nn.Module):
     def __init__(self, input_channels:int, r:int):
         super(SEBlock, self).__init__()
@@ -61,7 +48,6 @@ class GroupNorm(nn.GroupNorm):
     '''
     def __init__(self, num_channels, **kwargs):
         super(GroupNorm, self).__init__(1, num_channels, **kwargs)
-
 
 class PatchEmbeddingV1(nn.Module):
     '''
@@ -112,11 +98,12 @@ class PatchEmbeddingV2(nn.Module):
         assert N == H * W
         return rearrange(self.norm(self.embed(x.reshape(B, H, W, C).permute(0, 3, 1, 2))), "b c h w -> b (h w) c")
 
-'''
-Title: CONDITIONAL POSITIONAL ENCODINGS FOR VISION TRANSFORMERS
-References: https://arxiv.org/abs/2102.10882
-'''
 class CPE(nn.Module):
+    '''
+    Title: CONDITIONAL POSITIONAL ENCODINGS FOR VISION TRANSFORMERS\n
+    References: https://arxiv.org/abs/2102.10882\n
+    Used in Twins
+    '''
     def __init__(self, in_channels, embed_channels, kernel_size=3, stride=1, padding=1, groups=1):
         super(CPE, self).__init__()
         self.conv = nn.Conv2d(in_channels, embed_channels, kernel_size, stride, padding, groups=groups)
@@ -184,6 +171,12 @@ def RGP(x, h, w, grid_height, grid_width):
     (B * H // GRID_H * W // GRID_W, GRID_H * GRID_W, C) ---> (B, C, H, W)
     '''
     return rearrange(x, "(b h w) (gh gw) c -> b c (gh h) (gw w)", h=h // grid_height, w=w // grid_width, gh=grid_height, gw=grid_width)
+
+def Token2Patch(x, h, w):
+    return rearrange(x, "b (h w) c -> b c h w", h=h, w=w)
+
+def Patch2Token(x):
+    return rearrange(x, "b c h w -> b (h w) c")
 
 
 

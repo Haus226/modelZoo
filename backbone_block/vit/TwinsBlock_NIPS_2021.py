@@ -10,17 +10,17 @@ http://arxiv.org/abs/2104.13840
 
 import torch
 from torch import nn
-from utils import Mlp, CPE, PatchEmbeddingV1
+from utils import Mlp, CPE, PatchEmbeddingV1, Patch2Token
 from einops import rearrange
 from timm.layers import DropPath
 import math
+import torch.nn.functional as F
 
 class LSA(nn.Module):
     def __init__(self, channels, window_size=7, num_heads=32,
                 qkv_bias=True, attn_drop=0, proj_drop=0):
         super(LSA, self).__init__()
         self.window_size = window_size
-        self.channels = channels
         self.num_heads = num_heads
         head_channels =channels // num_heads
         self.scale = head_channels ** -0.5
@@ -33,10 +33,20 @@ class LSA(nn.Module):
 
     def forward(self, x, H, W):
         B, N, C = x.size()
-        assert (H % self.window_size[0]) == 0
-        assert (W % self.window_size[1]) == 0
+        assert N == H * W
 
-        h_patch, w_patch = H // self.window_size[0], W // self.window_size[1]
+        x = x.view(B, H, W, C)
+        # assert (H % self.window_size[0]) == 0
+        # assert (W % self.window_size[1]) == 0
+
+        # Slightly different from official implementation, we perform padding
+        pad_width = (self.window_size[1] - W % self.window_size[1]) % self.window_size[1]
+        pad_height = (self.window_size[0] - H % self.window_size[0]) % self.window_size[0]
+
+        padding = [pad_width // 2, math.ceil(pad_width / 2), pad_height // 2, math.ceil(pad_height / 2)]
+        x = F.pad(x, padding)
+        h, w = x.shape[1:3]
+        h_patch, w_patch = h // self.window_size[0], w // self.window_size[1]
         total_patches = h_patch * w_patch
         x = x.reshape(B, h_patch, self.window_size[0], w_patch, self.window_size[1], C).transpose(2, 3)
 
@@ -48,16 +58,19 @@ class LSA(nn.Module):
         attn = self.drop(attn.softmax(dim=-1))
 
         # (B, P, H, N, N) @ (B, P, H, N, C // H) -> (B, P, H, N, C // H) -> (B, P, N, H, C // H) -> 
-        # (B, H_P, W_P, WIN_H, WIN_W, C) -> (B, H_P, WIN_H, W_P, WIN_W, C) -> (B, N', C) 
-        x_attn = rearrange((attn @ v).squeeze(), "b (p q) h (wh ww) c -> b (p wh q ww) (h c)", 
+        # (B, H_P, W_P, WIN_H, WIN_W, C) -> (B, H_P, WIN_H, W_P, WIN_W, C)
+        x_attn = rearrange((attn @ v).squeeze(), "b (p q) h (wh ww) c -> b (p wh) (q ww) (h c)", 
                         p=h_patch, q=w_patch, wh=self.window_size[0], ww=self.window_size[1])
+        _, _, padded_h, padded_w = x_attn.size()
+        # Excluded padded area
+        x_attn = x_attn[:, :, padding[2]:padded_h - padding[3], padding[0]:padded_w - padding[1]]
+        x_attn = x_attn.flatten(start_dim=1, end_dim=2)
         x_attn = self.proj_drop(self.drop(x_attn))
         return x_attn
 
 class GSA(nn.Module):
     def __init__(self, channels, num_heads=32, window_size=1, qkv_bias=True, attn_drop=0, proj_drop=0):
         super(GSA, self).__init__()
-        self.channels = channels
         self.num_heads = num_heads
         head_channels = channels // num_heads
         self.scale = head_channels ** -0.5
@@ -83,11 +96,9 @@ class GSA(nn.Module):
         q = q * self.scale
         if self.window_size > 1:
             x = x.permute(0, 2, 1).reshape(B, C, H, W)
-            x = rearrange(self.down_sample(x), "b c h w -> b (h w) c")
+            x = Patch2Token(self.down_sample(x))
             x = self.down_norm(x)
-            kv = self.kv(x).reshape(B, -1, 2, self.num_heads, C // self.num_heads).permute(2, 0, 3, 1, 4)
-        else:
-            kv = self.kv(x).reshape(B, -1, 2, self.num_heads, C // self.num_heads).permute(2, 0, 3, 1, 4)
+        kv = self.kv(x).reshape(B, -1, 2, self.num_heads, C // self.num_heads).permute(2, 0, 3, 1, 4)
         k, v = kv.chunk(2, dim=0)
         
         attn = q @ k.transpose(-2, -1)
@@ -141,10 +152,9 @@ class TwinsStage(nn.Module):
 
     def forward(self, x):
         B, C, H, W = x.size()
-        H_ = math.floor((H - self.patch_size + 2 * self.padding) // self.stride + 1)
-        W_ = math.floor((W - self.patch_size + 2 * self.padding) // self.stride + 1)
         x = self.pe(x)
-        x = self.blocks[0](rearrange(x, "b c h w -> b (h w) c"), H_, W_)
+        H_, W_ = x.shape[2:]
+        x = self.blocks[0](Patch2Token(x), H_, W_)
         x = self.cpe(x, H_, W_)
         for block in self.blocks[1:]:
             x = block(x, H_, W_)

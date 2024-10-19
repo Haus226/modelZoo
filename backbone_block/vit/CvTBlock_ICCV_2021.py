@@ -10,11 +10,11 @@ http://arxiv.org/abs/2103.15808
 
 import torch
 from torch import nn
-from utils import Mlp, PatchEmbeddingV1
+from utils import Mlp, PatchEmbeddingV1, Token2Patch, Patch2Token
 from einops.layers.torch import Rearrange
 from einops import rearrange
 from timm.layers import DropPath
-import math
+
 
 class DWConvFlatten(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size, stride, padding):
@@ -51,7 +51,9 @@ class Attention(nn.Module):
     def forward(self, x, H, W):
         _, N, _ = x.size()
         assert N == H * W
-        x = rearrange(x, "b (h w) c -> b c h w", h=H, w=W)
+        x = Token2Patch(x, H, W)
+
+        # The conv including rearrange (b, c, h, w) to (b, h, w, c) already
         conv_q = self.q(x)
         conv_k, conv_v = torch.chunk(self.kv(x), 2, dim=-1)
 
@@ -97,10 +99,9 @@ class CvTStage(nn.Module):
     def forward(self, x):
         # For even patch_size and stride == patch_size, then, H' = H // stride and W' = W //stride
         B, C, H, W = x.size()
-        H_ = math.floor((H - self.patch_size + 2 * self.padding) // self.stride + 1)
-        W_ = math.floor((W - self.patch_size + 2 * self.padding) // self.stride + 1)
         x = self.pe(x)
-        x = self.blocks[0](rearrange(x, "b c h w -> b (h w) c"), H_, W_)
+        H_, W_ = x.shape[2:]
+        x = self.blocks[0](Patch2Token(x), H_, W_)
         for block in self.blocks[1:]:
             x = block(x, H_, W_)
         return x

@@ -10,7 +10,6 @@ https://arxiv.org/abs/1809.01330
 
 import torch
 from torch import nn
-from utils import ConvBNReLU
 
 class GCWConv(nn.Module):
     def __init__(self, groups, kernel_size, padding):

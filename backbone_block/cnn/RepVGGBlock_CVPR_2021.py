@@ -26,8 +26,8 @@ class RepVGGBlock(nn.Module):
         self.pad = [(kernel_size - 1) // 2] * 4
 
         self.identity = nn.BatchNorm2d(in_channels) if out_channels == in_channels and stride == 1 else None
-        self.conv = ConvBNReLU(in_channels, out_channels, kernel_size, stride, padding, groups, relu=False)
-        self.conv1x1 = ConvBNReLU(in_channels, out_channels, 1, stride, groups=groups, relu=False)
+        self.conv = ConvBNReLU(in_channels, out_channels, kernel_size, stride, padding, groups, act=False)
+        self.conv1x1 = ConvBNReLU(in_channels, out_channels, 1, stride, groups=groups, act=False)
     
     def _fuse_conv_bn(self, branch):
         conv, bn = branch.conv, branch.bn

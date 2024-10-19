@@ -21,7 +21,7 @@ class ScaleBranch(nn.Module):
         self.max_pool = nn.MaxPool2d(kernel_size)
         # The kernel_size needs to be handled carefully especially when 
         # the spatial size of input features is too small
-        self.block = ConvBNReLU(in_channels, out_channels, 3, padding=1, relu=False)
+        self.block = ConvBNReLU(in_channels, out_channels, 3, padding=1, act=False)
 
     def forward(self, x):
         if not self.up_size:

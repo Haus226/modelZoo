@@ -10,10 +10,9 @@ https://arxiv.org/abs/2102.12122
 
 import torch
 from torch import nn
-from utils import Mlp, PatchEmbeddingV1
+from utils import Mlp, PatchEmbeddingV1, Patch2Token
 from einops import rearrange
 from timm.layers import DropPath
-import math
 
 class Attention(nn.Module):
     def __init__(self, channels, num_heads=32, reduction_factor=1, qkv_bias=True, attn_drop=0, proj_drop=0):
@@ -38,15 +37,14 @@ class Attention(nn.Module):
     def forward(self, x, H, W):
         B, N, C = x.size()
         assert N == H * W
+
         q = self.q(x).reshape(B, N, self.num_heads, C // self.num_heads).permute(0, 2, 1, 3)
         q = q * self.scale
         if self.reduce_factor > 1:
             x = x.permute(0, 2, 1).reshape(B, C, H, W)
-            x = rearrange(self.down_sample(x), "b c h w -> b (h w) c")
+            x = Patch2Token(self.down_sample(x))
             x = self.down_norm(x)
-            kv = self.kv(x).reshape(B, -1, 2, self.num_heads, C // self.num_heads).permute(2, 0, 3, 1, 4)
-        else:
-            kv = self.kv(x).reshape(B, -1, 2, self.num_heads, C // self.num_heads).permute(2, 0, 3, 1, 4)
+        kv = self.kv(x).reshape(B, -1, 2, self.num_heads, C // self.num_heads).permute(2, 0, 3, 1, 4)
         k, v = kv.chunk(2, dim=0)
         
         attn = q @ k.transpose(-2, -1)
@@ -96,10 +94,9 @@ class PVTv1Stage(nn.Module):
     def forward(self, x):
         # For even patch_size and stride == patch_size, then, H' = H // stride and W' = W //stride
         B, C, H, W = x.size()
-        H_ = math.floor((H - self.patch_size + 2 * self.padding) // self.stride + 1)
-        W_ = math.floor((W - self.patch_size + 2 * self.padding) // self.stride + 1)
         x = self.pe(x)
-        x = self.blocks[0](rearrange(x, "b c h w -> b (h w) c"), H_, W_)
+        H_, W_ = x.shape[2:]
+        x = self.blocks[0](Patch2Token(x), H_, W_)
         for block in self.blocks[1:]:
             x = block(x, H_, W_)
         return x

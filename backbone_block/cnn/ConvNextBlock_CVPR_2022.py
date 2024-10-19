@@ -12,8 +12,6 @@ https://github.com/pytorch/vision/blob/main/torchvision/models/convnext.py
 
 import torch
 from torch import nn
-from utils import ConvBNReLU
-from torchvision.ops import StochasticDepth
 from timm.layers import DropPath
 
 class ConvNextBlock(nn.Module):

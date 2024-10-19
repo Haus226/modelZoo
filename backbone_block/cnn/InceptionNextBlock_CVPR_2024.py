@@ -17,9 +17,9 @@ class InceptionNextBlock(nn.Module):
     def __init__(self, in_channels, kernel_size=5, band_size=11, channels_ratio=0.125):
         super(InceptionNextBlock, self).__init__()
         ratio = int(in_channels * channels_ratio)
-        self.conv_hw = ConvBNReLU(ratio, ratio, kernel_size, padding=kernel_size // 2, groups=ratio, norm=False, relu=False)
-        self.conv_w = ConvBNReLU(ratio, ratio, (1, band_size), padding=(0, band_size // 2), groups=ratio, norm=False, relu=False) 
-        self.conv_h = ConvBNReLU(ratio, ratio, (band_size, 1), padding=(band_size // 2, 0), groups=ratio, norm=False, relu=False) 
+        self.conv_hw = ConvBNReLU(ratio, ratio, kernel_size, padding=kernel_size // 2, groups=ratio, norm=False, act=False)
+        self.conv_w = ConvBNReLU(ratio, ratio, (1, band_size), padding=(0, band_size // 2), groups=ratio, norm=False, act=False) 
+        self.conv_h = ConvBNReLU(ratio, ratio, (band_size, 1), padding=(band_size // 2, 0), groups=ratio, norm=False, act=False) 
         self.splits = [ratio, ratio, ratio, in_channels - 3 * ratio]
 
     def forward(self, x):

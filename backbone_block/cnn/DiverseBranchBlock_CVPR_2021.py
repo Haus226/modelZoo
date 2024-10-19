@@ -130,9 +130,9 @@ class DiverseBranchBlock(nn.Module):
         if deploy:
             self.conv_rep = nn.Conv2d(in_channels, out_channels, kernel_size, stride, padding, dilation, groups)
 
-        self.conv = ConvBNReLU(in_channels, out_channels, kernel_size, stride, padding, dilation, groups, False, relu=False)
+        self.conv = ConvBNReLU(in_channels, out_channels, kernel_size, stride, padding, dilation, groups, False, act=False)
         # Refer to Section 3.3
-        self.conv_1x1 = ConvBNReLU(in_channels, out_channels, 1, stride, 0, dilation, groups, False, relu=False) if groups < in_channels else None
+        self.conv_1x1 = ConvBNReLU(in_channels, out_channels, 1, stride, 0, dilation, groups, False, act=False) if groups < in_channels else None
         self.conv_avg = nn.Sequential(OrderedDict([
             ("conv", nn.Conv2d(in_channels, out_channels, 1, 1, 0, groups=groups, bias=False) if groups < in_channels else None),
             ("bn", PaddedBN(padding, out_channels)  if groups < in_channels else None),

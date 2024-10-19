@@ -11,6 +11,7 @@ https://github.com/huawei-noah/VanillaNet/blob/main/models/vanillanet.py
 
 from torch import nn
 import torch
+from utils import ConvBNReLU
 
 class StackedAct(nn.Module):
     def __init__(self, channels, act_num=3, bias=True, deploy=False):
@@ -60,14 +61,8 @@ class VanillaBlock(nn.Module):
         self.lambda_ = 1
         self.deploy = deploy
         self.conv = nn.Conv2d(in_channels, out_channels, 1)
-        self.conv1 = nn.Sequential(
-            nn.Conv2d(in_channels, in_channels, 1),
-            nn.BatchNorm2d(in_channels),
-        )
-        self.conv2 = nn.Sequential(
-            nn.Conv2d(in_channels, out_channels, 1),
-            nn.BatchNorm2d(out_channels),
-        )
+        self.conv_bn_1 = ConvBNReLU(in_channels, in_channels, 1, act=False)
+        self.conv_bn_2 = ConvBNReLU(in_channels, out_channels, 1, act=False)
         self.act = StackedAct(out_channels, act_num, bias, deploy)
         self.pool = nn.Identity if stride == 1 else nn.MaxPool2d(stride)
 
@@ -79,14 +74,14 @@ class VanillaBlock(nn.Module):
         return weight, bias
     
     def switch_to_deploy(self):
-        weight, bias = self._fuse_bn_tensor(self.conv1[0], self.conv1[1])
-        self.conv1[0].weight.data = weight
-        self.conv1[0].bias.data = bias
-        weight, bias = self._fuse_bn_tensor(self.conv2[0], self.conv2[1])
-        self.conv.weight.data = (weight.squeeze() @ self.conv1[0].weight.data.squeeze()).view(weight.size())
-        self.conv.bias.data = bias + (weight.squeeze() @ self.conv1[0].bias.data.view(-1, 1)).squeeze()
-        self.__delattr__('conv1')
-        self.__delattr__('conv2')
+        weight, bias = self._fuse_conv_bn(self.conv_bn_1.block.conv, self.conv_bn_1.block.bn)
+        self.conv_bn_1.block.conv.weight.data = weight
+        self.conv_bn_1.block.conv.bias.data = bias
+        weight, bias = self._fuse_conv_bn(self.conv_bn_2.block.conv, self.conv_bn_2.block.bn)
+        self.conv.weight.data = (weight.squeeze() @ self.conv_bn_1.block.conv.weight.data.squeeze()).view(weight.size())
+        self.conv.bias.data = bias + (weight.squeeze() @ self.conv_bn_1.block.conv.bias.data.view(-1, 1)).squeeze()
+        self.__delattr__('conv_bn_1')
+        self.__delattr__('conv_bn_2')
         self.act.switch_to_deploy()
         self.deploy = True
 
@@ -94,10 +89,10 @@ class VanillaBlock(nn.Module):
         if self.deploy:
             x = self.conv(x)
         else:
-            x = self.conv1(x)
+            x = self.conv_bn_1(x)
             # Deep training strategy with ReLU
-            x = torch.nn.functional.leaky_relu(x,self.lambda_)            
-            x = self.conv2(x)
+            x = torch.nn.functional.leaky_relu(x, self.lambda_)            
+            x = self.conv_bn_2(x)
         x = self.pool(x)
         x = self.act(x)
         return x
@@ -106,4 +101,6 @@ if __name__ == "__main__":
     torch.manual_seed(226)
     t = torch.randn((32, 64, 32, 32))
     vanilla = VanillaBlock(64, 16)
-    print(vanilla.forward(t).size())
+    print(vanilla(t).size())
+    vanilla.switch_to_deploy()
+    print(vanilla(t).size())

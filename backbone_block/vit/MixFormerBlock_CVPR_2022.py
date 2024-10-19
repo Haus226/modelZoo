@@ -11,7 +11,7 @@ https://github.com/PaddlePaddle/PaddleClas/blob/7b6c148065ba602dccf3e75a484f83e0
 
 import torch
 from torch import nn
-from utils import rel_pos_idx, WP, RWP, Mlp, PatchEmbeddingV1
+from utils import rel_pos_idx, WP, RWP, Mlp, PatchEmbeddingV1, Patch2Token
 from timm.layers import DropPath
 import torch.nn.functional as F
 import math
@@ -152,10 +152,10 @@ class MixFormerBlock(nn.Module):
         residual = x
         x = self.norm1(x)
         x = x.reshape(B, C, H, W)
-
+        
         pad_width = (self.window_size[1] - W % self.window_size[1]) % self.window_size[1]
         pad_height = (self.window_size[0] - H % self.window_size[0]) % self.window_size[0]
-
+        
         # Slightly different padding from official implementation
         padding = [pad_width // 2, math.ceil(pad_width / 2), pad_height // 2, math.ceil(pad_height / 2)]
         x = F.pad(x, padding)
@@ -164,7 +164,8 @@ class MixFormerBlock(nn.Module):
         x_reversed = RWP(attn_windows, x.size(2), x.size(3),
                         self.window_size[0], self.window_size[1])
         # Excluding the padded area
-        x = x_reversed[:, :, padding[2]:-padding[3], padding[0]:-padding[1]]
+        _, _, padded_h, padded_w = x_reversed.size()
+        x = x_reversed[:, :, padding[2]:padded_h - padding[3], padding[0]:padded_w - padding[1]]
         # (B, C, H, W) ---> (B, H * W, C)
         x = x.reshape([B, H * W, C])
         x = residual + self.drop_path(x)
@@ -187,11 +188,10 @@ class MixFormerStage(nn.Module):
 
     def forward(self, x):
         # For even patch_size and stride == patch_size, then, H' = H // stride and W' = W //stride
-        B, C, H, W = x.size()
-        H_ = math.floor((H - self.patch_size + 2 * self.padding) // self.stride + 1)
-        W_ = math.floor((W - self.patch_size + 2 * self.padding) // self.stride + 1)
+        B, C, H, W = x.size()    
         x = self.pe(x)
-        x = self.blocks[0](rearrange(x, "b c h w -> b (h w) c"), H_, W_)
+        H_, W_ = x.shape[2:]
+        x = self.blocks[0](Patch2Token(x), H_, W_)
         for block in self.blocks[1:]:
             x = block(x, H_, W_)
         return x
@@ -202,7 +202,7 @@ if __name__ == "__main__":
     block = MixFormerBlock(64, 4, [3, 3], 3, 4)
     print(block(t, 32, 32).size())
 
-    t = torch.rand((32, 64, 32, 32))
+    t = torch.rand((32, 64, 224, 224))
     stage = MixFormerStage(64, 128, 4, 4, 0)
     print(stage(t).size())
     stage = MixFormerStage(64, 128, 5, 2, 2)
