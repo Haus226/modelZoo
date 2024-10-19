@@ -20,7 +20,7 @@ class WeightConv(nn.Module):
         # M = 1, G = 1 --> SENet
         # M = num_experts / C_in, G = 1 / C_in --> CondConv
         self.gap = nn.AdaptiveAvgPool2d(1)
-        self.fc1 = nn.Conv2d(in_channels, in_channels // r, kernel_size=1, stride=stride)
+        self.fc1 = nn.Conv2d(in_channels, in_channels // r, 1, stride=stride)
         # When M = m / C_in, this becomes the fc in CondConv, (B, m, 1, 1), attention of M filters
         # When M = 1, this becomes the fc in SENet, (B, C_in, 1, 1), attention of C input channels
         # Else this becomes the attention of C input channels of M filters I guess
@@ -46,7 +46,7 @@ class WeightConv(nn.Module):
         self.out_channels = out_channels
         self.M, self.G = M, G
         self.stride = stride
-        self.padding = (kernel_size - 1) // 2
+        self.padding = kernel_size // 2
         self.kernel_size = kernel_size
 
     def forward(self, x):
@@ -61,9 +61,3 @@ class WeightConv(nn.Module):
         x = F.conv2d(x, weight=weight, stride=self.stride, padding=self.padding, groups=B)
         x = x.view(B, self.out_channels, H, W)
         return x
-        
-if __name__ == "__main__":
-    torch.manual_seed(226)
-    t = torch.rand(32, 64, 21, 21)
-    wc = WeightConv(64, 128, 16, 3, 2, 2, 1)
-    print(wc(t).size())

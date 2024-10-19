@@ -12,6 +12,9 @@ import torch
 from torch import nn
 
 class SlimConv(nn.Module):
+    '''
+    Output features have C_in // r_1 + C_in // r_2 channels
+    '''
     def __init__(self, in_channels, r_se, r_1, r_2):
         super(SlimConv, self).__init__()
         self.se = nn.Sequential(

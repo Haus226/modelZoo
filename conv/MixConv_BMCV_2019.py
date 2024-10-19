@@ -28,7 +28,5 @@ class MixConv(nn.Module):
             out.append(self.convs[idx](x_split[idx]))
             print(out[idx].size())
         return torch.cat(out, dim=1)
-if __name__ == "__main__":
-    t = torch.rand(5, 10, 64, 64)
-    m = MixConv([2, 2, 3, 3], [3, 5, 7, 9])
-    m.forward(t).size()
+
+

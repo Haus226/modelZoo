@@ -68,7 +68,7 @@ class CondConv(_ConvNd):
         x = x.view(1, B * C, H, W)
         if self.padding_mode == "zeros":
             out = F.conv2d(
-                x, weight, bias, stride=self.stride, padding="valid",
+                x, weight, bias, stride=self.stride, padding="same",
                 dilation=self.dilation, groups=self.groups * B)
         else:
             out = F.conv2d(F.pad(x, self._reversed_padding_repeated_twice, mode=self.padding_mode),
@@ -77,6 +77,7 @@ class CondConv(_ConvNd):
         return out.view(B, self.output_channels, *out.size()[-2:])
     
 if __name__ == "__main__":
-    t = torch.rand(5, 64, 21, 21)
-    s = CondConv(64, 128, 3)
+    torch.manual_seed(42)
+    t = torch.rand(5, 12, 64, 64).float()
+    s = CondConv(12, 32, 3, padding=1)
     print(s(t).size())
