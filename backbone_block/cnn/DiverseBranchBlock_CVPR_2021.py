@@ -228,4 +228,4 @@ if __name__ == "__main__":
     dbb.switch_to_deploy()
     merged = dbb(t)
     print(torch.allclose(branches, merged))
-    print(torch.abs(branches - merged))
+    print(torch.abs(branches - merged).sum())

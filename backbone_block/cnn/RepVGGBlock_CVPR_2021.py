@@ -16,7 +16,7 @@ from utils import ConvBNReLU
 
 class RepVGGBlock(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size,
-                stride=1, padding=0, dilation=1, groups=1, deploy=False):
+                stride=1, padding=0, groups=1, deploy=False):
         super(RepVGGBlock, self).__init__()
         self.deploy = deploy
         self.groups = groups
@@ -26,10 +26,11 @@ class RepVGGBlock(nn.Module):
         self.pad = [(kernel_size - 1) // 2] * 4
 
         self.identity = nn.BatchNorm2d(in_channels) if out_channels == in_channels and stride == 1 else None
-        self.conv = ConvBNReLU(in_channels, out_channels, kernel_size, stride, padding, groups, act=False)
+        self.conv = ConvBNReLU(in_channels, out_channels, kernel_size, stride, padding, groups=groups, act=False)
         self.conv1x1 = ConvBNReLU(in_channels, out_channels, 1, stride, groups=groups, act=False)
     
     def _fuse_conv_bn(self, branch):
+        # print(branch)
         conv, bn = branch.conv, branch.bn
         gamma = bn.weight
         std = (bn.running_var + bn.eps).sqrt()
@@ -46,25 +47,25 @@ class RepVGGBlock(nn.Module):
         # Try to draw an example for better understanding, this is basically try to convert
         # identity branch to an equivalent shape with the other branch for merging.
         # When groups = 1, suppose there is C_in input channels and D_out = C_in output channels (Remember this is identity mapping)
-        # C1   F1 F2 ... F_in D1
-        # C2                  D2
-        # ...                 ...  
-        # C_in                D_out
+        # C1   F1 F2 ... F_in    D1
+        # C2         ...         D2
+        # ...        ...         ...  
+        # C_in       ...         D_out
         # So, the possible way is performing depthwise convolution where the corresponding filter 
         # having same kernel size as the original branch but with the center equals to 1 for identity mapping.
-        # When groups = G, suppose there is 6 input(output) channels and G = 2, where F is now the
+        # When groups = G, suppose there is 6 input(output) channels and G = 3, where F is now the
         # weight of the original convolution we wish to merge.
         # C1 F11 F21 ---> C1 * F11 + C2 * F21
-        # C2 F12 F22 ---> C2 * F12 + C2 * F22
+        # C2 F12 F22 ---> C1 * F12 + C2 * F22
 
         # C1 F11 F21 ---> C1 * F11 + C2 * F21
-        # C2 F12 F22 ---> C2 * F12 + C2 * F22
+        # C2 F12 F22 ---> C1 * F12 + C2 * F22
 
         # C1 F11 F21 ---> C1 * F11 + C2 * F21
-        # C2 F12 F22 ---> C2 * F12 + C2 * F22
+        # C2 F12 F22 ---> C1 * F12 + C2 * F22
         # Since the identity mapping should be depthwise, we should make something like
-        # C1 (F11 + Idn) (F21 + 0) 
-        # C2 (F12 + 0) (F21 + Idn)
+        # D1 = C1 * F11 + C2 * F21 + C1 = C1 * (F11 + Idn) + C2 * (F21 + 0)
+        # D2 = C1 * F12 + C2 * F22 + C2 = C1 * (F12 + 0) + C2 * (F22 + Idn)  
         # 0 is something like masked the certain channels (not performing Identity) 
         # so we can map the channels in depthwise while also 
         # perform the original convolution
@@ -81,15 +82,16 @@ class RepVGGBlock(nn.Module):
     def _get_fused_weight(self):
         weight_1, bias_1 = self._fuse_conv_bn(self.conv)
         weight_2, bias_2 = self._fuse_conv_bn(self.conv1x1)
-        weight_3, bias_3 = self._convert_idn(self.identity)
+        weight_3, bias_3 = self._convert_idn()
         return weight_1 + F.pad(weight_2, self.pad) + weight_3, bias_1 + bias_2 + bias_3
 
     def switch_to_deploy(self):
         if self.deploy:
             return
+        
+        weight, bias = self._get_fused_weight()
         self.conv = nn.Conv2d(self.in_channels, self.out_channels, self.kernel_size, stride=self.conv.conv.stride,
                             padding=self.conv.conv.padding, dilation=self.conv.conv.dilation, groups=self.conv.conv.groups, bias=True)
-        weight, bias = self._get_fused_weight()
         self.conv.weight.data = weight
         self.conv.bias.data = bias
         self.__delattr__("conv1x1")
@@ -105,6 +107,10 @@ class RepVGGBlock(nn.Module):
 
 if __name__ == "__main__":
     torch.manual_seed(226)
-    t = torch.randn((32, 64, 32, 32))
-    repvgg = RepVGGBlock(64, 16, 5, padding=2)
-    print(repvgg(t).size())
+    t = torch.rand((32, 64, 32, 32))
+    repvgg = RepVGGBlock(64, 64, 3, padding=1, groups=8)
+    branches = repvgg(t)
+    repvgg.switch_to_deploy()
+    merged = repvgg(t)
+    print(torch.allclose(branches, merged))
+    print(torch.abs(branches - merged).sum())
