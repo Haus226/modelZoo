@@ -2,6 +2,21 @@ from torch import nn
 import torch
 from einops import rearrange
 import torch.nn.functional as F
+from timm.layers import DropPath
+from inspect import signature
+
+class ConvBNReLU(nn.Module):
+    def __init__(self, in_channels, out_channels, 
+                kernel_size, stride=1, padding=0, dilation=1, groups=1, bias=True,
+                eps=1e-05, momentum=0.1, affine=True, norm=True,
+                act=nn.ReLU):
+        super(ConvBNReLU, self).__init__()
+        self.conv = nn.Conv2d(in_channels, out_channels, kernel_size, stride, padding, dilation, groups, bias)
+        self.bn = nn.BatchNorm2d(out_channels, eps, momentum, affine) if norm else nn.Identity()
+        self.act = act() if act else nn.Identity()
+    
+    def forward(self, x):
+        return self.act(self.bn(self.conv(x)))
 
 class SEBlock(nn.Module):
     def __init__(self, input_channels:int, r:int):
@@ -40,6 +55,59 @@ class Mlp(nn.Module):
         x = self.norm(x)
         x = self.fc2(x)
         x = self.drop2(x)
+        return x
+
+class Attention(nn.Module):
+    def __init__(self, channels, num_heads=32, qkv_bias=True, attn_drop=0, proj_drop=0):
+        super(Attention, self).__init__()
+        self.num_heads = num_heads
+        head_channels = channels // num_heads
+        self.scale = head_channels ** -0.5
+        self.qkv = nn.Linear(channels, channels * 3, bias=qkv_bias)
+
+        self.drop = nn.Dropout(attn_drop)
+        self.proj = nn.Linear(channels, channels)
+        self.proj_drop = nn.Dropout(proj_drop)
+
+    def forward(self, x):
+        B, N, C = x.size()
+
+        qkv = self.qkv(x).reshape(B, N, 3, self.num_heads, C // self.num_heads).permute(2, 0, 3, 1, 4)
+        q, k, v = qkv.chunk(3, dim=0)
+        q = q * self.scale
+
+        attn = q @ k.transpose(-2, -1)
+        attn = self.drop(attn.softmax(dim=-1))
+
+        x_attn = (attn @ v).transpose(1, 2).reshape(B, N, C)
+        x_attn = self.proj_drop(self.proj(x))
+        return x_attn
+
+class Transformer(nn.Module):
+    def __init__(self, channels, mlp_ratio=4,
+                act_layer=nn.GELU, norm_layer=nn.LayerNorm, proj_drop=0,
+                drop_path=0, layer_scale=0):
+        super(Transformer, self).__init__()
+        self.token_mixer = None
+        self.norm_1 = norm_layer(channels)
+        self.norm_2 = norm_layer(channels)
+        self.mlp = Mlp(channels, int(channels * mlp_ratio), act_layer=act_layer, norm_layer=norm_layer, drop=proj_drop)
+        self.drop_path1 = DropPath(drop_path) if drop_path > 0 else nn.Identity()
+        self.drop_path2 = DropPath(drop_path) if drop_path > 0 else nn.Identity()
+        self.gamma_1 = nn.Parameter(layer_scale * torch.ones(channels)) if layer_scale > 0 else 1.0
+        self.gamma_2 = nn.Parameter(layer_scale * torch.ones(channels)) if layer_scale > 0 else 1.0
+
+    def forward_features(self, x, layer, norm, drop, scale, H=None, W=None):
+        params = signature(layer.forward).parameters
+        res = x
+        x = layer(norm(x), H, W) if 'H' in params and 'W' in params else layer(norm(x))
+        return res + drop(scale * x)
+
+    def forward(self, x, H=None, W=None):
+
+        assert self.token_mixer is not None, "You may forgot to define the attention part in the transformer"
+        x = self.forward_features(x, self.token_mixer, self.norm_1, self.drop_path1, self.gamma_1, H, W)
+        x = self.forward_features(x, self.mlp, self.norm_2, self.drop_path2, self.gamma_2, H, W)
         return x
 
 class GroupNorm(nn.GroupNorm):
@@ -178,15 +246,8 @@ def Token2Patch(x, h, w):
 def Patch2Token(x):
     return rearrange(x, "b c h w -> b (h w) c")
 
+def MergeHeads(x):
+    return rearrange(x, "b h n c -> b n (h c)")
 
-
-if __name__ == "__main__":
-    t = torch.rand((32, 64, 21, 21))
-    # Odd patch size with padding
-    pe = PatchEmbeddingV1(64, 128, 5, 3, 2)
-    print(pe(t).size())
-    # Odd patch size without padding
-    pe = PatchEmbeddingV1(64, 128, 5, 3)
-    print(pe(t).size())
-
-
+def SplitHeads(x):
+    return rearrange()
