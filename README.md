@@ -6,7 +6,7 @@ A repository that implements proposed idea from popular conference such as ECCV,
 |Activation|3|
 |CNN Attention|21|
 |CNN Backbone|9|
-|ViT Backbone|11|
+|ViT Backbone|14|
 |Convolution|10|
 |Normalization|1|
 |Sampling/Pooling|4|
