@@ -50,7 +50,7 @@ class Attention(nn.Module):
         attn = self.drop(attn.softmax(dim=-1))
 
         x_attn = (attn @ v).transpose(1, 2).reshape(B, N, C)
-        x_attn = self.proj_drop(self.proj(x))
+        x_attn = self.proj_drop(self.proj(x_attn))
         return x_attn
 
 class ViTBlock(nn.Module):

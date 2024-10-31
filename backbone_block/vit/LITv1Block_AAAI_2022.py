@@ -38,7 +38,7 @@ class RelAttention(Attention):
 
         attn = self.drop(attn.softmax(dim=-1))
         x_attn = MergeHeads(attn @ v)
-        x_attn = self.proj_drop(self.proj(x))
+        x_attn = self.proj_drop(self.proj(x_attn))
         return x_attn
 
     

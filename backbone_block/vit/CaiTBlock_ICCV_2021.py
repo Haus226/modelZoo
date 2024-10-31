@@ -104,7 +104,7 @@ class TalkingHeadAttention(nn.Module):
         attn = self.proj_post(attn.permute(0, 2, 3, 1)).permute(0, 3, 1, 2)
 
         x_attn = (attn @ v).transpose(1, 2).reshape(B, N, C)
-        x_attn = self.proj_drop(self.proj(x))
+        x_attn = self.proj_drop(self.proj(x_attn))
         return x_attn
     
 class THAttentionBlock(nn.Module):

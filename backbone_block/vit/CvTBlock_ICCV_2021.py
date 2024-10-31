@@ -10,7 +10,7 @@ http://arxiv.org/abs/2103.15808
 
 import torch
 from torch import nn
-from utils import Mlp, PatchEmbeddingV1, Token2Patch, Patch2Token
+from utils import Mlp, PatchEmbeddingV1, Token2Patch, Patch2Token, MergeHeads
 from einops.layers.torch import Rearrange
 from einops import rearrange
 from timm.layers import DropPath
@@ -63,7 +63,7 @@ class Attention(nn.Module):
         attn = q @ k.transpose(-2, -1) * self.scale
         attn = attn.softmax(dim=-1)
         attn = self.attn_drop(attn)
-        x = rearrange((attn @ v), "b h n c -> b n (h c)")
+        x = MergeHeads(attn @ v)
         return x
 
 class CvTBlock(nn.Module):
